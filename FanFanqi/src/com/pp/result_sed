@@ -1,0 +1,2559 @@
+ package com.pp;
+ 
+ import java.awt.Color;
+ import java.awt.Component;
+ import java.awt.Container;
+ import java.awt.Dimension;
+ import java.awt.Font;
+ import java.awt.Graphics;
+ import java.awt.event.MouseEvent;
+ import java.awt.event.MouseListener;
+ import java.awt.event.MouseMotionListener;
+ import java.io.DataOutputStream;
+ import java.io.IOException;
+ import java.io.PrintStream;
+ import javax.swing.AbstractButton;
+ import javax.swing.ButtonGroup;
+ import javax.swing.ButtonModel;
+ import javax.swing.JComponent;
+ import javax.swing.JLabel;
+ import javax.swing.JOptionPane;
+ import javax.swing.JPanel;
+ 
+ public class ChessBoard extends JPanel
+ {
+   public ChessMan[][] chessmen = new ChessMan[8][4];
+   public int[] iAllchess = new int[32];
+   public int iChessleft = 32;
+ 
+   public boolean first = true;
+   public int firstX = 0;
+   public int firstY = 0;
+ 
+   public JPanel panelWait = new JPanel();
+   public JLabel label = new JLabel("等待连接...");
+ 
+   public ChessBoard()
+   {
+     setLayout(null);
+     setSize(410, 210);
+     setLocation(110, 0);
+ 
+     this.panelWait.setLocation(100, 70);
+     this.panelWait.setSize(200, 50);
+     this.label.setLocation(0, 0);
+     this.label.setHorizontalAlignment(0);
+     this.label.setFont(new Font("宋体", 1, 25));
+     this.label.setForeground(new Color(255, 0, 0));
+     this.label.setSize(this.panelWait.getSize().width, this.panelWait.getSize().height);
+     this.panelWait.setOpaque(false);
+     this.panelWait.add(this.label);
+ 
+     this.panelWait.setVisible(false);
+ 
+     add(this.panelWait);
+ 
+     addMouseListener(new InnerMonitor());
+ 
+     initchess();
+   }
+ 
+   public void initchess()
+   {
+     for (int i = 0; i < 8; i++) {
+       for (int j = 0; j < 4; j++) {
+         this.chessmen[i][j] = new ChessMan(i, j);
+         this.chessmen[i][j].paintChessMan();
+         add(this.chessmen[i][j]);
+       }
+     }
+     for (int i = 0; i < 32; i++) {
+       this.iAllchess[i] = 1;
+     }
+ 
+     this.iChessleft = 32;
+   }
+ 
+   public void rollback()
+   {
+     for (int i = 0; i < 8; i++) {
+       for (int j = 0; j < 4; j++) {
+         if (this.chessmen[i][j] != null) {
+           this.chessmen[i][j].reset();
+           this.chessmen[i][j].paintChessMan();
+           this.chessmen[i][j].setVisible(false);
+           this.chessmen[i][j].setVisible(true);
+         }
+       }
+     }
+     for (int i = 0; i < 32; i++) {
+       this.iAllchess[i] = 1;
+     }
+ 
+     this.iChessleft = 32;
+   }
+ 
+   public void paintComponent(Graphics g)
+   {
+     g.drawImage(
+       PublicResource.imageBox.imageMenu, 
+       0, 
+       0, 
+       getSize().width, 
+       getSize().height, 
+       this);
+     for (int i = 5; i <= 205; i += 50) {
+       g.drawLine(5, i, 405, i);
+     }
+     for (int j = 5; j <= 405; j += 50)
+       g.drawLine(j, 5, j, 205);
+   }
+ 
+   public int checkEnd()
+   {
+     boolean red = false;
+     boolean black = false;
+     for (int i = 0; i < 16; i++) {
+       if (this.iAllchess[i] != 0)
+         red = true;
+     }
+     for (int i = 16; i < 32; i++) {
+       if (this.iAllchess[i] != 0)
+         black = true;
+     }
+     if (!red)
+       return 1;
+     if (!black)
+       return 2;
+     return 0;
+   }
+ 
+   public void matchend() {
+     PublicResource.bPlaying = false;
+     PublicResource.panelEnd.LtoRbutton.setEnabled(true);
+     PublicResource.panelEnd.RtoLbutton.setEnabled(true);
+     PublicResource.iColor = 0;
+     PublicResource.panelDead.showChessColor.setVisible(false);
+     PublicResource.panelDead.showChessRun.setVisible(false);
+     PublicResource.panelMenu.setButtonEnabled();
+     PublicResource.panelBoard.rollback();
+     PublicResource.panelDead.clearDeadChess();
+   }
+ 
+   private class InnerMonitor
+     implements MouseMotionListener, MouseListener
+   {
+     InnerMonitor()
+     {
+     }
+ 
+     public void mouseDragged(MouseEvent e)
+     {
+     }
+ 
+     public void mouseEntered(MouseEvent e)
+     {
+     }
+ 
+     public void mouseExited(MouseEvent e)
+     {
+     }
+ 
+     public void mouseMoved(MouseEvent e)
+     {
+     }
+ 
+     public void mousePressed(MouseEvent e)
+     {
+       if (!PublicResource.bOk) {
+         System.out.println("PublicResource.bOk" + PublicResource.bOk);
+         return;
+       }
+       int x = e.getX();
+       int y = e.getY();
+       int z = 0;
+ 
+       x = (x - 5) / 50;
+       y = (y - 5) / 50;
+ 
+       z = (e.getX() - (x * 50 + 25)) * (e.getX() - (x * 50 + 25)) + 
+         (e.getY() - (y * 50 + 25)) * (e.getY() - (y * 50 + 25));
+ 
+       if ((Math.sqrt(z) < 22.0D) && (PublicResource.bPlaying))
+       {
+         if (ChessBoard.this.first) {
+           if ((ChessBoard.this.chessmen[x][y].iStatus == PublicResource.chessUnknow) && (!ChessBoard.this.chessmen[x][y].dead)) {
+             showchess(x, y);
+           }
+           else if (!ChessBoard.this.chessmen[x][y].dead) {
+             choosechess(x, y);
+           }
+ 
+         }
+         else if (ChessBoard.this.chessmen[x][y].iStatus == PublicResource.chessSelected) {
+           unchoosechess(x, y);
+         }
+         else if (ChessBoard.this.chessmen[x][y].iStatus == PublicResource.chessUnselected)
+           move(x, y);
+       }
+     }
+ 
+     public void mouseClicked(MouseEvent e)
+     {
+     }
+ 
+     public void mouseReleased(MouseEvent e)
+     {
+     }
+ 
+     public int getChessNum()
+     {
+       int iChessLeftnum = (int)(Math.round(Math.random() * 100.0D) % ChessBoard.this.iChessleft);
+       int j = 0;
+ 
+       for (int i = 0; i < 32; i++)
+       {
+         if (ChessBoard.this.iAllchess[i] == 1) {
+           if (j == iChessLeftnum) {
+             return i;
+           }
+           j++;
+         }
+       }
+ 
+       return -1;
+     }
+ 
+     public void showchess(int x, int y) {
+       int chessnum = getChessNum();
+ 
+       ChessBoard.this.chessmen[x][y].setVisible(false);
+       ChessBoard.this.chessmen[x][y].iStatus = PublicResource.chessUnselected;
+       System.out.println("send: x:" + x + " y:" + y + " chessnum:" + chessnum);
+       ChessBoard.this.iAllchess[chessnum] = 2;
+       ChessBoard.this.chessmen[x][y].chessNum = chessnum;
+       ChessBoard.this.iChessleft -= 1;
+       String sInfo = "show," + x + "," + y + "," + ChessBoard.this.chessmen[x][y].chessNum;
+ 
+       ChessBoard.this.chessmen[x][y].paintChessMan();
+       ChessBoard.this.chessmen[x][y].setVisible(true);
+ 
+       if ((PublicResource.iColor == 0) && (PublicResource.panelEnd.group.getSelection().getActionCommand() == "The first different"))
+       {
+         if ((PublicResource.bServer) && (PublicResource.iFirst == 2)) {
+           if (chessnum > 15)
+             PublicResource.panelMenu.gameserver.iCheckcolor[1] = 2;
+           else {
+             PublicResource.panelMenu.gameserver.iCheckcolor[1] = 1;
+           }
+           if (PublicResource.panelMenu.gameserver.iCheckcolor[0] != PublicResource.panelMenu.gameserver.iCheckcolor[1]) {
+             PublicResource.iColor = PublicResource.panelMenu.gameserver.iCheckcolor[1];
+             PublicResource.panelDead.showChessColor.paintShowChess(PublicResource.iColor == 1);
+             PublicResource.panelDead.showChessColor.setVisible(true);
+             PublicResource.iFirst = -2;
+             String sInfo2 = "color," + PublicResource.panelMenu.gameserver.iCheckcolor[0];
+             System.out.println(sInfo2);
+             try {
+               if (!PublicResource.bServer) {
+                 PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo2);
+                 PublicResource.panelMenu.gameclient.dOut.flush();
+               }
+               else {
+                 PublicResource.panelMenu.gameserver.out.writeUTF(sInfo2);
+                 PublicResource.panelMenu.gameserver.out.flush();
+               }
+ 
+               PublicResource.bOk = false;
+               PublicResource.panelDead.showChessRun.setVisible(false);
+               System.out.println(sInfo);
+             }
+             catch (IOException e)
+             {
+               e.printStackTrace();
+             }
+           }
+ 
+         }
+         else if ((PublicResource.bServer) && (PublicResource.iFirst == 1)) {
+           if (chessnum > 15)
+             PublicResource.panelMenu.gameserver.iCheckcolor[0] = 2;
+           else {
+             PublicResource.panelMenu.gameserver.iCheckcolor[0] = 1;
+           }
+         }
+       }
+       else if (PublicResource.iColor == 0)
+       {
+         if (chessnum > 15)
+         {
+           PublicResource.iColor = 2;
+         }
+         else
+         {
+           PublicResource.iColor = 1;
+         }
+         PublicResource.iFirst = 0 - PublicResource.iFirst;
+         PublicResource.panelDead.showChessColor.paintShowChess(PublicResource.iColor == 1);
+         PublicResource.panelDead.showChessColor.setVisible(true);
+       }
+ 
+       try
+       {
+         if (!PublicResource.bServer) {
+           PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+           PublicResource.panelMenu.gameclient.dOut.flush();
+         }
+         else {
+           PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+           PublicResource.panelMenu.gameserver.out.flush();
+         }
+ 
+         PublicResource.bOk = false;
+         PublicResource.panelDead.showChessRun.setVisible(false);
+         System.out.println(sInfo);
+       }
+       catch (IOException e)
+       {
+         e.printStackTrace();
+       }
+     }
+ 
+     public void choosechess(int x, int y)
+     {
+       if (PublicResource.iColor == 1) {
+         if (ChessBoard.this.chessmen[x][y].chessNum > 15)
+           return;
+       }
+       else if (PublicResource.iColor == 2) {
+         if (ChessBoard.this.chessmen[x][y].chessNum <= 15)
+           return;
+       }
+       else
+         return;
+       ChessBoard.this.chessmen[x][y].iStatus = PublicResource.chessSelected;
+       ChessBoard.this.chessmen[x][y].setVisible(false);
+       ChessBoard.this.chessmen[x][y].setVisible(true);
+       ChessBoard.this.firstX = x;
+       ChessBoard.this.firstY = y;
+       ChessBoard.this.first = false;
+ 
+       String sInfo = "selected," + x + "," + y;
+       try
+       {
+         if (!PublicResource.bServer) {
+           PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+           PublicResource.panelMenu.gameclient.dOut.flush();
+         }
+         else {
+           PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+           PublicResource.panelMenu.gameserver.out.flush();
+         }
+ 
+         System.out.println(sInfo);
+       }
+       catch (IOException e)
+       {
+         e.printStackTrace();
+       }
+     }
+ 
+     public void unchoosechess(int x, int y) {
+       ChessBoard.this.chessmen[x][y].iStatus = PublicResource.chessUnselected;
+       ChessBoard.this.chessmen[x][y].setVisible(false);
+       ChessBoard.this.chessmen[x][y].setVisible(true);
+       ChessBoard.this.first = true;
+       String sInfo = "unselected," + x + "," + y;
+       try
+       {
+         if (!PublicResource.bServer) {
+           PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+           PublicResource.panelMenu.gameclient.dOut.flush();
+         }
+         else {
+           PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+           PublicResource.panelMenu.gameserver.out.flush();
+         }
+ 
+         System.out.println(sInfo);
+       }
+       catch (IOException e)
+       {
+         e.printStackTrace();
+       }
+     }
+ 
+     public boolean checknext(int x, int y)
+     {
+       if ((x != ChessBoard.this.firstX) && (y != ChessBoard.this.firstY))
+         return false;
+       if ((Math.abs(ChessBoard.this.firstX - x) > 1) || (Math.abs(ChessBoard.this.firstY - y) > 1)) {
+         return false;
+       }
+ 
+       return true;
+     }
+ 
+     public boolean isPao(int i) {
+       if ((i != 5) && (i != 6) && (i != 21) && (i != 22)) {
+         return false;
+       }
+       return true;
+     }
+ 
+     public void exchange(int x, int y) {
+       ChessBoard.this.chessmen[ChessBoard.this.firstX][ChessBoard.this.firstY].iStatus = PublicResource.chessUnselected;
+ 
+       ChessBoard.this.chessmen[x][y].setVisible(false);
+       ChessBoard.this.chessmen[ChessBoard.this.firstX][ChessBoard.this.firstY].setVisible(false);
+ 
+       if ((ChessBoard.this.chessmen[x][y].chessNum >= 0) && (ChessBoard.this.chessmen[x][y].chessNum < 32)) {
+         ChessBoard.this.iAllchess[ChessBoard.this.chessmen[x][y].chessNum] = 0;
+         PublicResource.panelDead.addDeadChess(ChessBoard.this.chessmen[x][y].chessNum);
+       }
+       ChessBoard.this.chessmen[x][y].chessNum = ChessBoard.this.chessmen[ChessBoard.this.firstX][ChessBoard.this.firstY].chessNum;
+       ChessBoard.this.chessmen[x][y].dead = ChessBoard.this.chessmen[ChessBoard.this.firstX][ChessBoard.this.firstY].dead;
+ 
+       ChessBoard.this.chessmen[ChessBoard.this.firstX][ChessBoard.this.firstY].dead = true;
+       ChessBoard.this.chessmen[ChessBoard.this.firstX][ChessBoard.this.firstY].chessNum = 32;
+ 
+       ChessBoard.this.chessmen[x][y].paintChessMan();
+       ChessBoard.this.chessmen[x][y].setVisible(true);
+ 
+       ChessBoard.this.first = true;
+     }
+ 
+     public boolean checkPao(int x, int y) {
+       if (checknext(x, y)) {
+         if (checkEat(x, y)) {
+           return true;
+         }
+         return false;
+       }
+ 
+       if ((x != ChessBoard.this.firstX) && (y != ChessBoard.this.firstY))
+         return false;
+       if ((x == ChessBoard.this.firstX) && (checkInner(x, y, true))) {
+         return true;
+       }
+       if ((y == ChessBoard.this.firstY) && (checkInner(x, y, false))) {
+         return true;
+       }
+ 
+       return false;
+     }
+ 
+     public boolean checkInner(int x, int y, boolean isX)
+     {
+       int bigY = 0;
+       int litY = 0;
+       int bigX = 0;
+       int litX = 0;
+       int num = 0;
+       if (isX) {
+         if (y > ChessBoard.this.firstY) {
+           bigY = y;
+           litY = ChessBoard.this.firstY;
+         }
+         else {
+           bigY = ChessBoard.this.firstY;
+           litY = y;
+         }
+         for (int i = litY + 1; i < bigY; i++) {
+           if (!ChessBoard.this.chessmen[x][i].dead)
+             num++;
+         }
+         System.out.println(bigY);
+         System.out.println(litY);
+         System.out.println(num);
+ 
+         if (num == 1) {
+           return true;
+         }
+         return false;
+       }
+ 
+       if (x > ChessBoard.this.firstX) {
+         bigX = x;
+         litX = ChessBoard.this.firstX;
+       }
+       else {
+         bigX = ChessBoard.this.firstX;
+         litX = x;
+       }
+       for (int i = litX + 1; i < bigX; i++) {
+         if (!ChessBoard.this.chessmen[i][y].dead)
+           num++;
+       }
+       System.out.println(bigX);
+       System.out.println(litX);
+       System.out.println(num);
+       if (num == 1) {
+         return true;
+       }
+       return false;
+     }
+ 
+     public boolean checkColor(int x, int y)
+     {
+       if (PublicResource.sAllChessmen[ChessBoard.this.chessmen[x][y].chessNum][1].equals(PublicResource.sAllChessmen[ChessBoard.this.chessmen[ChessBoard.this.firstX][ChessBoard.this.firstY].chessNum][1])) {
+         return false;
+       }
+       return true;
+     }
+ 
+     public boolean checkEat(int x, int y) {
+       int black = 0;
+       int red = 0;
+       if (isBlack(x, y)) {
+         black = ChessBoard.this.chessmen[x][y].chessNum - 16;
+         red = ChessBoard.this.chessmen[ChessBoard.this.firstX][ChessBoard.this.firstY].chessNum;
+         if ((red < 5) && (black < 5))
+           return true;
+         if ((red < 5) && (black == 15))
+           return true;
+         if ((red >= 5) && (black >= 5) && (red <= 6) && (black <= 6))
+           return true;
+         if ((red >= 7) && (black >= 7) && (red <= 8) && (black <= 8))
+           return true;
+         if ((red >= 9) && (black >= 9) && (red <= 10) && (black <= 10))
+           return true;
+         if ((red >= 11) && (black >= 11) && (red <= 12) && (black <= 12))
+           return true;
+         if ((red >= 13) && (black >= 13) && (red <= 14) && (black <= 14)) {
+           return true;
+         }
+         if (black <= red) {
+           if (red != 15) {
+             return true;
+           }
+           if (black >= 5) {
+             return true;
+           }
+           return false;
+         }
+ 
+         return false;
+       }
+ 
+       red = ChessBoard.this.chessmen[x][y].chessNum;
+       black = ChessBoard.this.chessmen[ChessBoard.this.firstX][ChessBoard.this.firstY].chessNum - 16;
+       if ((red < 5) && (black < 5))
+         return true;
+       if ((black < 5) && (red == 15))
+         return true;
+       if ((red >= 5) && (black >= 5) && (red <= 6) && (black <= 6))
+         return true;
+       if ((red >= 7) && (black >= 7) && (red <= 8) && (black <= 8))
+         return true;
+       if ((red >= 9) && (black >= 9) && (red <= 10) && (black <= 10))
+         return true;
+       if ((red >= 11) && (black >= 11) && (red <= 12) && (black <= 12))
+         return true;
+       if ((red >= 13) && (black >= 13) && (red <= 14) && (black <= 14))
+         return true;
+       if (red <= black) {
+         if (black != 15) {
+           return true;
+         }
+         if (red >= 5) {
+           return true;
+         }
+         return false;
+       }
+ 
+       return false;
+     }
+ 
+     public void move(int x, int y)
+     {
+       boolean bMove = false;
+       if (ChessBoard.this.chessmen[x][y].dead) {
+         if (checknext(x, y))
+         {
+           exchange(x, y);
+           bMove = true;
+         }
+         else {
+           bMove = false;
+         }
+ 
+       }
+       else if (!checkColor(x, y)) {
+         bMove = false;
+       }
+       else if (!isPao(ChessBoard.this.chessmen[ChessBoard.this.firstX][ChessBoard.this.firstY].chessNum)) {
+         if ((checknext(x, y)) && (checkEat(x, y))) {
+           exchange(x, y);
+           bMove = true;
+         }
+         else {
+           bMove = false;
+         }
+       }
+       else if (checkPao(x, y)) {
+         exchange(x, y);
+         bMove = true;
+       }
+       else {
+         bMove = false;
+       }
+ 
+       if (bMove) {
+         String sInfo = "move," + x + "," + y;
+         try
+         {
+           if (!PublicResource.bServer) {
+             PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+             PublicResource.panelMenu.gameclient.dOut.flush();
+           }
+           else {
+             PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+             PublicResource.panelMenu.gameserver.out.flush();
+           }
+           PublicResource.bOk = false;
+           PublicResource.panelDead.showChessRun.setVisible(false);
+ 
+           System.out.println(sInfo);
+         }
+         catch (IOException e)
+         {
+           e.printStackTrace();
+         }
+       }
+ 
+       if (PublicResource.bServer) {
+         int end = ChessBoard.this.checkEnd();
+         String sInfo = "end,lose";
+         if (end == 1) {
+           try {
+             if (!PublicResource.bServer) {
+               PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+               PublicResource.panelMenu.gameclient.dOut.flush();
+             }
+             else {
+               PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+               PublicResource.panelMenu.gameserver.out.flush();
+             }
+           }
+           catch (IOException e)
+           {
+             e.printStackTrace();
+           }
+           JOptionPane.showMessageDialog(PublicResource.panelBoard, 
+             "恭喜，胜利！", 
+             "信息", 
+             1);
+ 
+           PublicResource.panelBoard.matchend();
+         }
+         else if (end == 2) {
+           try {
+             if (!PublicResource.bServer) {
+               PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+               PublicResource.panelMenu.gameclient.dOut.flush();
+             }
+             else {
+               PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+               PublicResource.panelMenu.gameserver.out.flush();
+             }
+           }
+           catch (IOException e)
+           {
+             e.printStackTrace();
+           }
+           JOptionPane.showMessageDialog(PublicResource.panelBoard, 
+             "恭喜，胜利！", 
+             "信息", 
+             1);
+ 
+           PublicResource.panelBoard.matchend();
+         }
+       }
+     }
+ 
+     public boolean isBlack(int x, int y)
+     {
+       if (PublicResource.sAllChessmen[ChessBoard.this.chessmen[x][y].chessNum][1].toLowerCase().equals("black")) {
+         return true;
+       }
+       return false;
+     }
+   }
+ }
+
+ package com.pp;
+ 
+ import java.awt.Color;
+ import java.awt.Component;
+ import java.awt.Container;
+ import java.awt.Dimension;
+ import java.awt.Font;
+ import java.awt.Graphics;
+ import javax.swing.JComponent;
+ import javax.swing.JLabel;
+ import javax.swing.JPanel;
+ 
+ public class ChessMan extends JPanel
+ {
+   JLabel label = new JLabel();
+   public int iStatus = PublicResource.chessUnknow;
+   private int x = 0;
+   private int y = 0;
+   public int chessNum = 32;
+   public boolean dead = false;
+ 
+   public ChessMan(int x, int y)
+   {
+     setLayout(null);
+     setSize(44, 44);
+ 
+     this.label.setSize(getSize().width, getSize().height);
+     this.label.setLocation(0, 0);
+     this.label.setHorizontalAlignment(0);
+     this.label.setFont(new Font("隶书", 1, 30));
+     add(this.label);
+ 
+     setOpaque(false);
+ 
+     this.x = x;
+     this.y = y;
+     this.chessNum = 32;
+ 
+     this.dead = false;
+   }
+ 
+   public void reset() {
+     this.chessNum = 32;
+     this.iStatus = PublicResource.chessUnknow;
+     this.dead = false;
+   }
+   public void paintComponent(Graphics g) {
+     if (this.iStatus == PublicResource.chessUnknow) {
+       g.drawImage(
+         PublicResource.imageBox.imageBack, 
+         0, 
+         0, 
+         getSize().width, 
+         getSize().height, 
+         this);
+     }
+     else if (this.iStatus == PublicResource.chessUnselected) {
+       g.drawImage(
+         PublicResource.imageBox.imageRed, 
+         0, 
+         0, 
+         getSize().width, 
+         getSize().height, 
+         this);
+     }
+     else
+       g.drawImage(
+         PublicResource.imageBox.imageSelect, 
+         0, 
+         0, 
+         getSize().width, 
+         getSize().height, 
+         this);
+   }
+ 
+   public void setText(String name) {
+     this.label.setText(name);
+   }
+ 
+   public void setForeground(boolean color) {
+     if (color) {
+       this.label.setForeground(new Color(255, 0, 0));
+     }
+     else
+       this.label.setForeground(new Color(0, 0, 0));
+   }
+ 
+   public void paintChessMan()
+   {
+     setLocation(this.x * 50 + 8, this.y * 50 + 8);
+ 
+     if (this.chessNum == 32)
+     {
+       setText("");
+       setForeground(true);
+     }
+     else {
+       setText(PublicResource.sAllChessmen[this.chessNum][0]);
+       setForeground(PublicResource.sAllChessmen[this.chessNum][1].toLowerCase().equals("red"));
+     }
+   }
+ 
+   public void paintShowChess(boolean red)
+   {
+     setLocation(3, 3);
+     this.iStatus = PublicResource.chessUnselected;
+     if (red) {
+       setText("帥");
+       setForeground(true);
+     }
+     else {
+       setText("將");
+       setForeground(false);
+     }
+   }
+ 
+   public void paintRunChess() {
+     setLocation(3, 53);
+     this.iStatus = PublicResource.chessUnselected;
+     setText("走");
+     this.label.setForeground(new Color(175, 51, 37));
+   }
+ }
+
+ package com.pp;
+ 
+ import java.awt.Component;
+ import java.awt.Container;
+ import java.awt.Dimension;
+ import java.awt.Font;
+ import java.awt.Graphics;
+ import java.awt.Image;
+ import java.awt.event.ActionEvent;
+ import java.io.DataOutputStream;
+ import java.io.IOException;
+ import java.io.PrintStream;
+ import javax.swing.AbstractButton;
+ import javax.swing.ImageIcon;
+ import javax.swing.JButton;
+ import javax.swing.JComponent;
+ import javax.swing.JOptionPane;
+ import javax.swing.JPanel;
+ 
+ public class ChessMenu extends JPanel
+ {
+   public JButton createServer = new JButton("建主机");
+   public JButton connectServer = new JButton("连接主机");
+   public JButton newgame = new JButton("新游戏");
+   public JButton askPeace = new JButton("求和");
+   public JButton lose = new JButton("认输");
+ 
+   public boolean iswaiting = false;
+ 
+   public Image imageMenu = null;
+   public ImageIcon imageicon = null;
+ 
+   public GameServer gameserver = new GameServer();
+   public GameClient gameclient = new GameClient();
+ 
+   public ChessMenu()
+   {
+     setLayout(null);
+ 
+     setSize(110, 210);
+     setLocation(0, 0);
+     setButtons();
+     try {
+       this.imageicon = LoadImage.loadImage("Menu.JPG");
+     }
+     catch (IOException e) {
+       e.printStackTrace();
+     }
+ 
+     this.imageMenu = LoadImage.getImageFromJar("Menu.JPG", getClass());
+   }
+ 
+   public void setButtons() {
+     try {
+       this.createServer.setLocation(6, 10);
+       this.createServer.setSize(new Dimension(90, 20));
+       this.createServer.setFont(new Font("Helvetica", 1, 12));
+       this.createServer.addActionListener(
+         new FanActionListener(this, "createServer"));
+ 
+       this.connectServer.setLocation(6, 50);
+       this.connectServer.setSize(new Dimension(90, 20));
+       this.connectServer.setFont(new Font("Helvetica", 1, 12));
+       this.connectServer.addActionListener(
+         new FanActionListener(this, "connectServer"));
+ 
+       this.newgame.setLocation(6, 90);
+       this.newgame.setSize(new Dimension(90, 20));
+       this.newgame.setFont(new Font("Helvetica", 1, 12));
+       this.newgame.addActionListener(
+         new FanActionListener(this, "newgame"));
+ 
+       this.askPeace.setLocation(6, 130);
+       this.askPeace.setSize(new Dimension(90, 20));
+       this.askPeace.setFont(new Font("Helvetica", 1, 12));
+       this.askPeace.addActionListener(
+         new FanActionListener(this, "askPeace"));
+ 
+       this.lose.setLocation(6, 170);
+       this.lose.setSize(new Dimension(90, 20));
+       this.lose.setFont(new Font("Helvetica", 1, 12));
+       this.lose.addActionListener(
+         new FanActionListener(this, "lose"));
+ 
+       add(this.createServer, null);
+       add(this.connectServer, null);
+       add(this.newgame, null);
+       add(this.askPeace, null);
+       add(this.lose, null);
+ 
+       setButtonEnabled();
+     }
+     catch (Exception e)
+     {
+       e.printStackTrace();
+     }
+   }
+ 
+   public void setButtonEnabled()
+   {
+     this.createServer.setEnabled((!PublicResource.bPlaying) && (!PublicResource.bConnected));
+     this.connectServer.setEnabled((!PublicResource.bPlaying) && (!PublicResource.bConnected));
+     this.newgame.setEnabled((!PublicResource.bPlaying) && (PublicResource.bConnected));
+     this.askPeace.setEnabled((PublicResource.bPlaying) && (PublicResource.bConnected));
+     this.lose.setEnabled((PublicResource.bPlaying) && (PublicResource.bConnected));
+   }
+ 
+   public void createServer(ActionEvent e)
+   {
+     if (!this.iswaiting) {
+       this.gameserver.waitConnect();
+       this.iswaiting = true;
+     }
+     else
+     {
+       System.out.println("A server has been created to wait connection.");
+     }
+   }
+ 
+   public void connectServer(ActionEvent e) { String ip = JOptionPane.showInputDialog(PublicResource.panelBoard, "输入对方ip");
+ 
+     this.gameclient.setIp(ip);
+     this.gameclient.connect();
+     PublicResource.panelEnd.LtoRbutton.setSelected(true);
+   }
+ 
+   public void newgame(ActionEvent e)
+   {
+     System.out.println("New game!");
+     this.newgame.setEnabled(false);
+ 
+     String sInfo = "newgameapply";
+     try
+     {
+       if (!PublicResource.bServer) {
+         PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+         PublicResource.panelMenu.gameclient.dOut.flush();
+       }
+       else
+       {
+         PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+         PublicResource.panelMenu.gameserver.out.flush();
+       }
+ 
+       PublicResource.panelEnd.LtoRbutton.setEnabled(false);
+       PublicResource.panelEnd.RtoLbutton.setEnabled(false);
+     }
+     catch (IOException e1)
+     {
+       e1.printStackTrace();
+     }
+   }
+ 
+   public void askPeace(ActionEvent e)
+   {
+     System.out.println("Ask for peace!");
+     String sInfo = "peaceapply";
+     try {
+       if (!PublicResource.bServer) {
+         PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+         PublicResource.panelMenu.gameclient.dOut.flush();
+       }
+       else
+       {
+         PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+         PublicResource.panelMenu.gameserver.out.flush();
+       }
+ 
+     }
+     catch (IOException e1)
+     {
+       e1.printStackTrace();
+     }
+   }
+ 
+   public void lose(ActionEvent e) {
+     System.out.println("You Lose!");
+ 
+     int option = JOptionPane.showConfirmDialog(PublicResource.panelBoard, 
+       "确定降了？", "信息", 0);
+ 
+     if (option == 0)
+     {
+       String sInfo = "lose";
+ 
+       PublicResource.panelBoard.matchend();
+       try
+       {
+         if (!PublicResource.bServer) {
+           PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+           PublicResource.panelMenu.gameclient.dOut.flush();
+         }
+         else
+         {
+           PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+           PublicResource.panelMenu.gameserver.out.flush();
+         }
+ 
+       }
+       catch (IOException e1)
+       {
+         e1.printStackTrace();
+       }
+     }
+   }
+ 
+   public void paintComponent(Graphics g)
+   {
+     g.drawImage(
+       PublicResource.imageBox.imageMenu, 
+       0, 
+       0, 
+       getSize().width, 
+       getSize().height, 
+       this);
+   }
+ }
+
+ package com.pp;
+ 
+ import java.awt.Color;
+ import java.awt.Component;
+ import java.awt.Container;
+ import java.awt.Dimension;
+ import java.awt.Font;
+ import java.awt.Graphics;
+ import javax.swing.JComponent;
+ import javax.swing.JLabel;
+ import javax.swing.JPanel;
+ 
+ public class DeadChessBoard extends JPanel
+ {
+   public JLabel label1 = new JLabel();
+   public JLabel label2 = new JLabel();
+   public JLabel label3 = new JLabel();
+   public ChessMan showChessColor = new ChessMan(0, 0);
+   public ChessMan showChessRun = new ChessMan(0, 0);
+ 
+   public int num = 0;
+   DeadChessMan[] deadchessmen = new DeadChessMan[32];
+ 
+   public DeadChessBoard() {
+     setLayout(null);
+     setLocation(0, 210);
+     setSize(520, 111);
+ 
+     this.label1.setLocation(50, 0);
+     this.label2.setLocation(50, getSize().height / 3);
+     this.label3.setLocation(50, getSize().height / 3 * 2);
+ 
+     this.label1.setText("八");
+     this.label2.setText("宝");
+     this.label3.setText("山");
+ 
+     this.label1.setFont(new Font("隶书", 1, 40));
+     this.label2.setFont(new Font("隶书", 1, 40));
+     this.label3.setFont(new Font("隶书", 1, 40));
+ 
+     this.label1.setForeground(new Color(0, 0, 0));
+     this.label2.setForeground(new Color(0, 0, 0));
+     this.label3.setForeground(new Color(0, 0, 0));
+ 
+     this.label1.setHorizontalAlignment(0);
+     this.label2.setHorizontalAlignment(0);
+     this.label3.setHorizontalAlignment(0);
+ 
+     this.label1.setSize(50, getSize().height / 3);
+     this.label2.setSize(50, getSize().height / 3);
+     this.label3.setSize(50, getSize().height / 3);
+ 
+     add(this.label1);
+     add(this.label2);
+     add(this.label3);
+ 
+     this.showChessColor.paintShowChess(true);
+     this.showChessColor.setVisible(false);
+     this.showChessRun.paintRunChess();
+     this.showChessRun.setVisible(false);
+     add(this.showChessColor);
+     add(this.showChessRun);
+ 
+     for (int i = 0; i < 32; i++) {
+       this.deadchessmen[i] = new DeadChessMan();
+       int y = i / 11;
+       int x = i % 11;
+       this.deadchessmen[i].setLocation(x * 37 + 101, y * 37 + 1);
+       this.deadchessmen[i].setVisible(false);
+       add(this.deadchessmen[i]);
+     }
+   }
+ 
+   public void paintComponent(Graphics g)
+   {
+     g.drawImage(
+       PublicResource.imageBox.imageMenu, 
+       0, 
+       0, 
+       getSize().width, 
+       getSize().height, 
+       this);
+ 
+     g.drawLine(50, 0, 50, getSize().height);
+     g.drawLine(0, 50, 50, 50);
+     g.drawLine(0, 0, 520, 0);
+     g.drawLine(0, 110, 520, 110);
+     g.setColor(new Color(16, 91, 114));
+     g.drawLine(100, 0, 100, getSize().height);
+     g.drawLine(100, getSize().height / 3, getSize().width, getSize().height / 3);
+     g.drawLine(100, getSize().height / 3 * 2, getSize().width, getSize().height / 3 * 2);
+   }
+ 
+   public void addDeadChess(int chessnum)
+   {
+     this.deadchessmen[this.num].paintChessMan(chessnum);
+     this.deadchessmen[this.num].setVisible(true);
+     this.num += 1;
+   }
+ 
+   public void clearDeadChess()
+   {
+     for (int i = 0; i < 32; i++)
+       this.deadchessmen[i].setVisible(false);
+     this.num = 0;
+   }
+ }
+
+ package com.pp;
+ 
+ import java.awt.Color;
+ import java.awt.Component;
+ import java.awt.Container;
+ import java.awt.Dimension;
+ import java.awt.Font;
+ import java.awt.Graphics;
+ import javax.swing.JComponent;
+ import javax.swing.JLabel;
+ import javax.swing.JPanel;
+ 
+ public class DeadChessMan extends JPanel
+ {
+   JLabel label = new JLabel();
+   public int iStatus = PublicResource.chessUnknow;
+ 
+   public int chessNum = 32;
+   public boolean dead = false;
+ 
+   public DeadChessMan() {
+     setLayout(null);
+     setSize(34, 34);
+ 
+     this.label.setSize(getSize().width, getSize().height);
+     this.label.setLocation(0, 0);
+     this.label.setHorizontalAlignment(0);
+     this.label.setFont(new Font("隶书", 1, 28));
+     add(this.label);
+ 
+     setOpaque(false);
+ 
+     this.dead = false;
+   }
+ 
+   public void reset() {
+     this.chessNum = 32;
+     this.iStatus = PublicResource.chessUnknow;
+     this.dead = false;
+   }
+   public void paintComponent(Graphics g) {
+     g.drawImage(
+       PublicResource.imageBox.imageRed, 
+       0, 
+       0, 
+       getSize().width, 
+       getSize().height, 
+       this);
+   }
+ 
+   public void setText(String name) {
+     this.label.setText(name);
+   }
+ 
+   public void setForeground(boolean color) {
+     if (color) {
+       this.label.setForeground(new Color(255, 0, 0));
+     }
+     else
+       this.label.setForeground(new Color(0, 0, 0));
+   }
+ 
+   public void paintChessMan(int chessnum)
+   {
+     setText(PublicResource.sAllChessmen[chessnum][0]);
+     setForeground(PublicResource.sAllChessmen[chessnum][1].toLowerCase().equals("red"));
+   }
+ }
+
+ package com.pp;
+ 
+ import java.awt.Component;
+ import java.awt.Container;
+ import java.awt.Dimension;
+ import java.awt.FlowLayout;
+ import java.awt.Graphics;
+ import java.awt.event.ActionEvent;
+ import java.awt.event.ActionListener;
+ import java.io.DataOutputStream;
+ import java.io.IOException;
+ import javax.swing.AbstractButton;
+ import javax.swing.ButtonGroup;
+ import javax.swing.ButtonModel;
+ import javax.swing.JComponent;
+ import javax.swing.JPanel;
+ import javax.swing.JRadioButton;
+ 
+ public class EndPanel extends JPanel
+ {
+   JRadioButton RtoLbutton;
+   JRadioButton LtoRbutton;
+   public String FirstOne = "The first one";
+   public String FirstDifferent = "The first different";
+   public ButtonGroup group = new ButtonGroup();
+ 
+   FlowLayout experimentLayout = new FlowLayout();
+ 
+   public EndPanel() {
+     setSize(520, 100);
+     setLocation(0, 321);
+     setLayout(this.experimentLayout);
+ 
+     this.LtoRbutton = new JRadioButton("一子定色");
+     this.LtoRbutton.setActionCommand(this.FirstOne);
+     this.LtoRbutton.setSelected(true);
+     this.RtoLbutton = new JRadioButton("颜色异同定色");
+     this.RtoLbutton.setActionCommand(this.FirstDifferent);
+ 
+     this.group.add(this.LtoRbutton);
+     this.group.add(this.RtoLbutton);
+ 
+     this.RtoLbutton.setOpaque(false);
+     this.LtoRbutton.setOpaque(false);
+ 
+     this.RtoLbutton.addActionListener(new ActionListener() {
+       public void actionPerformed(ActionEvent e) {
+         String command = EndPanel.this.group.getSelection().getActionCommand();
+         if (command.equals("The first different")) {
+           String sInfo = "actionbutton,2";
+           try {
+             if (!PublicResource.bServer) {
+               PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+               PublicResource.panelMenu.gameclient.dOut.flush();
+             }
+             else {
+               PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+               PublicResource.panelMenu.gameserver.out.flush();
+             }
+           }
+           catch (IOException e1) {
+             e1.printStackTrace();
+           }
+         }
+       }
+     });
+     this.LtoRbutton.addActionListener(new ActionListener() {
+       public void actionPerformed(ActionEvent e) {
+         String command = EndPanel.this.group.getSelection().getActionCommand();
+         if (command.equals("The first one")) {
+           String sInfo = "actionbutton,1";
+           try {
+             if (!PublicResource.bServer) {
+               PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+               PublicResource.panelMenu.gameclient.dOut.flush();
+             }
+             else {
+               PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+               PublicResource.panelMenu.gameserver.out.flush();
+             }
+           }
+           catch (IOException e1) {
+             e1.printStackTrace();
+           }
+         }
+       }
+     });
+     add(this.LtoRbutton);
+     add(this.RtoLbutton);
+   }
+ 
+   public void paintComponent(Graphics g)
+   {
+     g.drawImage(
+       PublicResource.imageBox.imageMenu, 
+       0, 
+       0, 
+       getSize().width, 
+       getSize().height, 
+       this);
+   }
+ }
+
+ package com.pp;
+ 
+ import java.awt.event.ActionEvent;
+ import java.awt.event.ActionListener;
+ import java.io.PrintStream;
+ import java.lang.reflect.InvocationTargetException;
+ import java.lang.reflect.Method;
+ 
+ public class FanActionListener
+   implements ActionListener
+ {
+   protected Object objTarget;
+   protected Method objMethod;
+ 
+   public FanActionListener(Object objTarget, String sMethod)
+     throws NoSuchMethodException, SecurityException
+   {
+     this.objTarget = objTarget;
+     Class[] clsParams = { ActionEvent.class };
+     this.objMethod = objTarget.getClass().getMethod(sMethod, clsParams);
+   }
+ 
+   public void actionPerformed(ActionEvent event)
+   {
+     Object[] objArgs = { event };
+     try
+     {
+       this.objMethod.invoke(this.objTarget, objArgs);
+     }
+     catch (IllegalAccessException e)
+     {
+       System.out.println("FanfanqiActionListener: " + e);
+     }
+     catch (InvocationTargetException e) {
+       System.out.println("FanfanqiActionListener: " + e);
+     }
+   }
+ }
+
+ package com.pp;
+ 
+ import java.io.DataInputStream;
+ import java.io.DataOutputStream;
+ import java.io.FilterInputStream;
+ import java.io.FilterOutputStream;
+ import java.io.IOException;
+ import java.io.PrintStream;
+ import java.net.Socket;
+ import java.net.UnknownHostException;
+ import javax.swing.AbstractButton;
+ import javax.swing.ButtonGroup;
+ import javax.swing.ButtonModel;
+ import javax.swing.JComponent;
+ import javax.swing.JOptionPane;
+ 
+ public class GameClient
+ {
+   public Socket client = null;
+   public String ip = "192.168.1.102";
+   public DataInputStream dIn = null;
+   public DataOutputStream dOut = null;
+ 
+   public void setIp(String ip)
+   {
+     this.ip = ip;
+   }
+   public void connect() {
+     new Thread()
+     {
+       public void run() {
+         try {
+           PublicResource.panelMenu.createServer.setEnabled(false);
+           GameClient.this.client = new Socket(GameClient.this.ip, PublicResource.iPort);
+ 
+           GameClient.this.dOut = new DataOutputStream(GameClient.this.client.getOutputStream());
+           GameClient.this.dIn = new DataInputStream(GameClient.this.client.getInputStream());
+           System.out.println("connected to 192.168.1.102");
+ 
+           PublicResource.bServer = false;
+           PublicResource.bPlaying = false;
+           PublicResource.iColor = 0;
+           PublicResource.bConnected = true;
+ 
+           PublicResource.panelMenu.setButtonEnabled();
+ 
+           JOptionPane.showMessageDialog(
+             PublicResource.panelBoard, 
+             "连接成功！", 
+             "信息", 
+             1);
+ 
+           PublicResource.panelEnd.LtoRbutton.setSelected(true);
+           GameClient.this.getInputStr();
+         }
+         catch (UnknownHostException e1)
+         {
+           e1.printStackTrace();
+         }
+         catch (Exception e) {
+           System.out.println(e.getMessage());
+           if (e.getMessage().startsWith("Connection refused"))
+             JOptionPane.showMessageDialog(PublicResource.panelBoard, 
+               "连接不到对方", 
+               "信息", 
+               1);
+           else if (e.getMessage().toLowerCase().startsWith("connection reset")) {
+             if (PublicResource.bPlaying) {
+               JOptionPane.showMessageDialog(PublicResource.panelBoard, 
+                 "对方退出", 
+                 "信息", 
+                 1);
+             }
+           }
+           else {
+             JOptionPane.showMessageDialog(PublicResource.panelBoard, 
+               e.getMessage(), 
+               "信息", 
+               1);
+           }
+           PublicResource.bServer = false;
+           PublicResource.panelMenu.iswaiting = false;
+           PublicResource.bConnected = false;
+ 
+           PublicResource.panelBoard.matchend();
+           try
+           {
+             if (GameClient.this.dOut != null)
+               GameClient.this.dOut.close();
+             if (GameClient.this.dIn != null)
+               GameClient.this.dIn.close();
+             if (GameClient.this.client != null)
+               GameClient.this.client.close();
+           }
+           catch (IOException e1)
+           {
+             e1.printStackTrace();
+           }
+           GameClient.this.dOut = null;
+           GameClient.this.dIn = null;
+           GameClient.this.client = null;
+         }
+ 
+       }
+ 
+     }
+ 
+     .start();
+   }
+ 
+   public int[] getPara(String sPara, int num) {
+     int[] iPara = new int[num];
+     String para = sPara;
+     int itemp = 0;
+     for (int i = 0; i < num; i++) {
+       System.out.println(para);
+ 
+       int index = para.indexOf(',');
+       if (index != -1)
+         itemp = converttoint(para.substring(0, para.indexOf(',')));
+       else
+         itemp = converttoint(para);
+       para = para.substring(para.indexOf(',') + 1);
+       iPara[i] = itemp;
+     }
+     return iPara;
+   }
+ 
+   public int converttoint(String para) {
+     int ipara = 0;
+     for (int i = 0; i < para.length(); i++) {
+       ipara = para.charAt(i) - '0' + ipara * 10;
+     }
+     return ipara;
+   }
+ 
+   public void exchange(int x, int y, int firstX, int firstY) {
+     PublicResource.panelBoard.chessmen[firstX][firstY].iStatus = PublicResource.chessUnselected;
+ 
+     PublicResource.panelBoard.chessmen[x][y].setVisible(false);
+     PublicResource.panelBoard.chessmen[firstX][firstY].setVisible(false);
+ 
+     if ((PublicResource.panelBoard.chessmen[x][y].chessNum >= 0) && (PublicResource.panelBoard.chessmen[x][y].chessNum < 32)) {
+       PublicResource.panelBoard.iAllchess[PublicResource.panelBoard.chessmen[x][y].chessNum] = 0;
+       PublicResource.panelDead.addDeadChess(PublicResource.panelBoard.chessmen[x][y].chessNum);
+     }
+     PublicResource.panelBoard.chessmen[x][y].chessNum = PublicResource.panelBoard.chessmen[firstX][firstY].chessNum;
+     PublicResource.panelBoard.chessmen[x][y].dead = PublicResource.panelBoard.chessmen[firstX][firstY].dead;
+ 
+     PublicResource.panelBoard.chessmen[firstX][firstY].dead = true;
+     PublicResource.panelBoard.chessmen[firstX][firstY].chessNum = 32;
+ 
+     PublicResource.panelBoard.chessmen[x][y].paintChessMan();
+     PublicResource.panelBoard.chessmen[x][y].setVisible(true);
+   }
+ 
+   public void getInputStr()
+     throws IOException
+   {
+     while (!PublicResource.bEnd) {
+       String read = this.dIn.readUTF();
+       System.out.println(read);
+       if (read.startsWith("whofirst")) {
+         if (read.substring(read.indexOf(',') + 1).equals("1")) {
+           System.out.println("client: 先走");
+           PublicResource.bOk = true;
+           PublicResource.panelDead.showChessRun.setVisible(true);
+         }
+         else
+         {
+           System.out.println("client: 后走");
+           PublicResource.bOk = false;
+           PublicResource.panelDead.showChessRun.setVisible(false);
+         }
+ 
+       }
+       else if (read.startsWith("newgameapply"))
+       {
+         PublicResource.panelMenu.newgame.setEnabled(false);
+         int option = JOptionPane.showConfirmDialog(PublicResource.panelBoard, 
+           "对方请求开始游戏，开始？", "信息", 0);
+ 
+         if (option == 0) {
+           PublicResource.panelBoard.rollback();
+ 
+           String sInfo = "newgameok";
+ 
+           if (!PublicResource.bServer) {
+             PublicResource.panelMenu.gameclient.dOut.writeUTF(
+               sInfo);
+             PublicResource.panelMenu.gameclient.dOut.flush();
+           } else {
+             PublicResource.panelMenu.gameserver.out.writeUTF(
+               sInfo);
+             PublicResource.panelMenu.gameserver.out.flush();
+           }
+           PublicResource.bPlaying = true;
+           PublicResource.panelEnd.LtoRbutton.setEnabled(false);
+           PublicResource.panelEnd.RtoLbutton.setEnabled(false);
+           PublicResource.panelMenu.setButtonEnabled();
+         }
+         else
+         {
+           String sInfo = "newgamefalse";
+ 
+           PublicResource.panelMenu.newgame.setEnabled(true);
+ 
+           if (!PublicResource.bServer) {
+             PublicResource.panelMenu.gameclient.dOut.writeUTF(
+               sInfo);
+             PublicResource.panelMenu.gameclient.dOut.flush();
+           } else {
+             PublicResource.panelMenu.gameserver.out.writeUTF(
+               sInfo);
+             PublicResource.panelMenu.gameserver.out.flush();
+           }
+         }
+       }
+       else if (read.startsWith("color")) {
+         System.out.println(read);
+         if (read.substring(read.indexOf(',') + 1).equals("1")) {
+           PublicResource.iColor = 1;
+           PublicResource.panelDead.showChessColor.paintShowChess(true);
+           PublicResource.panelDead.showChessColor.setVisible(true);
+         }
+         else if (read.substring(read.indexOf(',') + 1).equals("2")) {
+           PublicResource.iColor = 2;
+           PublicResource.panelDead.showChessColor.paintShowChess(false);
+           PublicResource.panelDead.showChessColor.setVisible(true);
+         }
+ 
+       }
+       else if (read.startsWith("newgameok")) {
+         JOptionPane.showMessageDialog(
+           PublicResource.panelBoard, 
+           "游戏开始！", 
+           "信息", 
+           1);
+ 
+         PublicResource.panelBoard.rollback();
+ 
+         PublicResource.bPlaying = true;
+         PublicResource.panelMenu.setButtonEnabled();
+       }
+       else if (read.startsWith("newgamefalse")) {
+         PublicResource.panelMenu.newgame.setEnabled(true);
+         JOptionPane.showMessageDialog(
+           PublicResource.panelBoard, 
+           "对方拒绝开始游戏！", 
+           "信息", 
+           1);
+         PublicResource.panelEnd.LtoRbutton.setEnabled(true);
+         PublicResource.panelEnd.RtoLbutton.setEnabled(true);
+       }
+       else if (read.startsWith("actionbutton"))
+       {
+         if (read.endsWith("1"))
+           PublicResource.panelEnd.LtoRbutton.setSelected(true);
+         else {
+           PublicResource.panelEnd.RtoLbutton.setSelected(true);
+         }
+ 
+       }
+       else if (read.startsWith("show")) {
+         System.out.println(read);
+         String strTemp = read.substring(read.indexOf(',') + 1);
+         System.out.println(strTemp);
+ 
+         int[] iPara = getPara(strTemp, 3);
+         int x = iPara[0];
+         int y = iPara[1];
+         int chessNum = iPara[2];
+         System.out.println(
+           "receive: x:" + x + " y:" + y + " chessnum:" + chessNum);
+ 
+         PublicResource.panelBoard.chessmen[x][y].setVisible(false);
+         PublicResource.panelBoard.chessmen[x][y].chessNum = chessNum;
+         PublicResource.panelBoard.iAllchess[chessNum] = 2;
+         PublicResource.panelBoard.iChessleft -= 1;
+         PublicResource.panelBoard.chessmen[x][y].iStatus = 
+           PublicResource.chessUnselected;
+         PublicResource.panelBoard.chessmen[x][y].paintChessMan();
+         PublicResource.panelBoard.chessmen[x][y].setVisible(true);
+ 
+         if ((PublicResource.iColor == 0) && (PublicResource.panelEnd.group.getSelection().getActionCommand() == "The first one")) {
+           if (chessNum > 15)
+             PublicResource.iColor = 1;
+           else {
+             PublicResource.iColor = 2;
+           }
+           PublicResource.panelDead.showChessColor.paintShowChess(PublicResource.iColor == 1);
+           PublicResource.panelDead.showChessColor.setVisible(true);
+         }
+ 
+         PublicResource.bOk = true;
+         PublicResource.panelDead.showChessRun.setVisible(true);
+       }
+       else if (read.startsWith("move")) {
+         String strTemp = read.substring(read.indexOf(',') + 1);
+         int[] iPara = getPara(strTemp, 2);
+         int x = iPara[0];
+         int y = iPara[1];
+ 
+         exchange(
+           x, 
+           y, 
+           PublicResource.panelBoard.firstX, 
+           PublicResource.panelBoard.firstY);
+ 
+         PublicResource.bOk = true;
+         PublicResource.panelDead.showChessRun.setVisible(true);
+       }
+       else if (read.startsWith("peaceapply")) {
+         int option = JOptionPane.showConfirmDialog(PublicResource.panelBoard, 
+           "对方请求和局，同意否？", "信息", 0);
+         String sInfo = null;
+ 
+         if (option == 0) {
+           sInfo = "peaceyes";
+           try {
+             if (!PublicResource.bServer) {
+               PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+               PublicResource.panelMenu.gameclient.dOut.flush();
+             }
+             else {
+               PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+               PublicResource.panelMenu.gameserver.out.flush();
+             }
+           }
+           catch (IOException e1)
+           {
+             e1.printStackTrace();
+           }
+ 
+           PublicResource.panelBoard.matchend();
+         }
+         else
+         {
+           sInfo = "peaceno";
+           try {
+             if (!PublicResource.bServer) {
+               PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+               PublicResource.panelMenu.gameclient.dOut.flush();
+             }
+             else {
+               PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+               PublicResource.panelMenu.gameserver.out.flush();
+             }
+           }
+           catch (IOException e1)
+           {
+             e1.printStackTrace();
+           }
+         }
+ 
+       }
+       else if (read.startsWith("peaceyes")) {
+         JOptionPane.showMessageDialog(
+           PublicResource.panelBoard, 
+           "和局！", 
+           "信息", 
+           1);
+ 
+         PublicResource.panelBoard.matchend();
+       }
+       else if (read.startsWith("peaceno"))
+       {
+         JOptionPane.showMessageDialog(
+           PublicResource.panelBoard, 
+           "对方拒绝和局！", 
+           "信息", 
+           1);
+       }
+       else if (read.startsWith("lose"))
+       {
+         JOptionPane.showMessageDialog(
+           PublicResource.panelBoard, 
+           "对方认输！", 
+           "信息", 
+           1);
+ 
+         PublicResource.panelBoard.matchend();
+       }
+       else if (read.startsWith("selected")) {
+         String strTemp = read.substring(read.indexOf(',') + 1);
+ 
+         int[] iPara = getPara(strTemp, 2);
+         int x = iPara[0];
+         int y = iPara[1];
+ 
+         PublicResource.panelBoard.chessmen[x][y].iStatus = 
+           PublicResource.chessSelected;
+         PublicResource.panelBoard.chessmen[x][y].setVisible(false);
+         PublicResource.panelBoard.chessmen[x][y].setVisible(true);
+         PublicResource.panelBoard.firstX = x;
+         PublicResource.panelBoard.firstY = y;
+       }
+       else if (read.startsWith("unselected")) {
+         String strTemp = read.substring(read.indexOf(',') + 1);
+ 
+         int[] iPara = getPara(strTemp, 2);
+         int x = iPara[0];
+         int y = iPara[1];
+ 
+         PublicResource.panelBoard.chessmen[x][y].iStatus = 
+           PublicResource.chessUnselected;
+         PublicResource.panelBoard.chessmen[x][y].setVisible(false);
+         PublicResource.panelBoard.chessmen[x][y].setVisible(true);
+       }
+       else if (read.startsWith("end")) {
+         String end = null;
+         if (read.toLowerCase().endsWith("lose")) {
+           end = "你输啦！";
+         }
+         else if (read.toLowerCase().endsWith("win")) {
+           end = "恭喜恭喜，胜利！";
+         }
+ 
+         JOptionPane.showMessageDialog(PublicResource.panelBoard, end, "信息", 1);
+ 
+         PublicResource.panelBoard.matchend();
+       }
+     }
+   }
+ }
+
+ package com.pp;
+ 
+ import java.io.DataInputStream;
+ import java.io.DataOutputStream;
+ import java.io.FilterInputStream;
+ import java.io.FilterOutputStream;
+ import java.io.IOException;
+ import java.io.PrintStream;
+ import java.net.ServerSocket;
+ import java.net.Socket;
+ import javax.swing.AbstractButton;
+ import javax.swing.ButtonGroup;
+ import javax.swing.ButtonModel;
+ import javax.swing.JComponent;
+ import javax.swing.JOptionPane;
+ 
+ public class GameServer
+ {
+   public ServerSocket server = null;
+   public Socket sIn = null;
+   public DataInputStream in = null;
+   public DataOutputStream out = null;
+ 
+   public int[] iCheckcolor = new int[2];
+ 
+   public void waitConnect()
+   {
+     new Thread() {
+       public void run() {
+         try {
+           GameServer.this.server = new ServerSocket(PublicResource.iPort);
+           System.out.println("Server is waiting");
+           PublicResource.panelMenu.connectServer.setEnabled(false);
+           PublicResource.panelBoard.panelWait.setVisible(true);
+           Socket sIn = GameServer.this.server.accept();
+           PublicResource.panelBoard.panelWait.setVisible(false);
+           GameServer.this.in = new DataInputStream(sIn.getInputStream());
+           GameServer.this.out = new DataOutputStream(sIn.getOutputStream());
+ 
+           PublicResource.bServer = true;
+           PublicResource.bPlaying = false;
+           PublicResource.bConnected = true;
+ 
+           PublicResource.panelMenu.setButtonEnabled();
+ 
+           JOptionPane.showMessageDialog(
+             PublicResource.panelBoard, 
+             "连接成功！", 
+             "信息", 
+             1);
+ 
+           PublicResource.panelEnd.LtoRbutton.setSelected(true);
+           GameServer.this.getInputStr();
+         }
+         catch (Exception e)
+         {
+           System.out.println(e.getMessage());
+           if (e.getMessage().startsWith("Connection refused")) {
+             JOptionPane.showMessageDialog(
+               PublicResource.panelBoard, 
+               "连接不到对方", 
+               "信息", 
+               1);
+           }
+           else if (e.getMessage().toLowerCase().startsWith(
+             "connection reset"))
+           {
+             if (PublicResource.bPlaying)
+               JOptionPane.showMessageDialog(
+                 PublicResource.panelBoard, 
+                 "对方退出", 
+                 "信息", 
+                 1);
+           }
+           else {
+             JOptionPane.showMessageDialog(
+               PublicResource.panelBoard, 
+               e.getMessage(), 
+               "信息", 
+               1);
+           }
+ 
+           PublicResource.bConnected = false;
+           PublicResource.bServer = false;
+           PublicResource.panelMenu.iswaiting = false;
+ 
+           PublicResource.panelBoard.matchend();
+           try
+           {
+             if (GameServer.this.out != null)
+               GameServer.this.out.close();
+             if (GameServer.this.in != null)
+               GameServer.this.in.close();
+             if (GameServer.this.sIn != null)
+               GameServer.this.sIn.close();
+             if (GameServer.this.server != null)
+               GameServer.this.server.close();
+           }
+           catch (IOException e1) {
+             e1.printStackTrace();
+           }
+           GameServer.this.out = null;
+           GameServer.this.in = null;
+           GameServer.this.sIn = null;
+           GameServer.this.server = null;
+         }
+       }
+     }
+ 
+     .start();
+   }
+ 
+   public int[] getPara(String sPara, int num) {
+     int[] iPara = new int[num];
+     String para = sPara;
+     int itemp = 0;
+     for (int i = 0; i < num; i++)
+     {
+       int index = para.indexOf(',');
+       if (index != -1)
+         itemp = converttoint(para.substring(0, para.indexOf(',')));
+       else
+         itemp = converttoint(para);
+       para = para.substring(para.indexOf(',') + 1);
+       iPara[i] = itemp;
+     }
+     return iPara;
+   }
+ 
+   public int converttoint(String para) {
+     int ipara = 0;
+     for (int i = 0; i < para.length(); i++) {
+       ipara = para.charAt(i) - '0' + ipara * 10;
+     }
+     return ipara;
+   }
+ 
+   public void exchange(int x, int y, int firstX, int firstY) {
+     PublicResource.panelBoard.chessmen[firstX][firstY].iStatus = 
+       PublicResource.chessUnselected;
+ 
+     PublicResource.panelBoard.chessmen[x][y].setVisible(false);
+     PublicResource.panelBoard.chessmen[firstX][firstY].setVisible(false);
+ 
+     if ((PublicResource.panelBoard.chessmen[x][y].chessNum >= 0) && 
+       (PublicResource.panelBoard.chessmen[x][y].chessNum < 32)) {
+       PublicResource.panelBoard.iAllchess[
+         PublicResource.panelBoard.chessmen[
+         x][y].chessNum] = 
+         0;
+ 
+       PublicResource.panelDead.addDeadChess(PublicResource.panelBoard.chessmen[x][y].chessNum);
+     }
+     PublicResource.panelBoard.chessmen[x][y].chessNum = 
+       PublicResource.panelBoard.chessmen[firstX][firstY].chessNum;
+     PublicResource.panelBoard.chessmen[x][y].dead = 
+       PublicResource.panelBoard.chessmen[firstX][firstY].dead;
+ 
+     PublicResource.panelBoard.chessmen[firstX][firstY].dead = true;
+     PublicResource.panelBoard.chessmen[firstX][firstY].chessNum = 32;
+ 
+     PublicResource.panelBoard.chessmen[x][y].paintChessMan();
+     PublicResource.panelBoard.chessmen[x][y].setVisible(true);
+   }
+ 
+   public int checkEnd()
+   {
+     boolean red = false;
+     boolean black = false;
+     for (int i = 0; i < 16; i++) {
+       if (PublicResource.panelBoard.iAllchess[i] != 0)
+         red = true;
+     }
+     for (int i = 16; i < 32; i++) {
+       if (PublicResource.panelBoard.iAllchess[i] != 0)
+         black = true;
+     }
+     if (!red)
+       return 1;
+     if (!black)
+       return 2;
+     return 0;
+   }
+ 
+   public void getInputStr() throws IOException {
+     while (!PublicResource.bEnd) {
+       String read = this.in.readUTF();
+ 
+       if (read.startsWith("newgameapply"))
+       {
+         PublicResource.panelMenu.newgame.setEnabled(false);
+         int option = JOptionPane.showConfirmDialog(PublicResource.panelBoard, 
+           "对方请求开始游戏，开始？", "信息", 0);
+ 
+         if (option == 0)
+         {
+           PublicResource.panelBoard.rollback();
+ 
+           PublicResource.bPlaying = true;
+           PublicResource.panelEnd.LtoRbutton.setEnabled(false);
+           PublicResource.panelEnd.RtoLbutton.setEnabled(false);
+           PublicResource.panelMenu.setButtonEnabled();
+ 
+           String sInfo = "newgameok";
+ 
+           if (!PublicResource.bServer) {
+             PublicResource.panelMenu.gameclient.dOut.writeUTF(
+               sInfo);
+             PublicResource.panelMenu.gameclient.dOut.flush();
+           } else {
+             PublicResource.panelMenu.gameserver.out.writeUTF(
+               sInfo);
+             PublicResource.panelMenu.gameserver.out.flush();
+           }
+           System.out.println(PublicResource.iFirst);
+           if (PublicResource.iFirst == 0) {
+             int whofirst = 
+               (int)(Math.round(Math.random() * 100.0D) % 2L);
+             String a = null;
+             if (whofirst == 0) {
+               a = "whofirst,1";
+               this.out.writeUTF(a);
+               this.out.flush();
+               PublicResource.bOk = false;
+               PublicResource.panelDead.showChessRun.setVisible(false);
+               PublicResource.iFirst = 2;
+             } else {
+               a = "whofirst,0";
+               this.out.writeUTF(a);
+               this.out.flush();
+               PublicResource.bOk = true;
+               PublicResource.panelDead.showChessRun.setVisible(true);
+               PublicResource.iFirst = 1;
+             }
+             System.out.println("server:" + a);
+           }
+           else if (PublicResource.iFirst < 0) {
+             String a = null;
+             if (PublicResource.iFirst == -1) {
+               a = "whofirst,1";
+               this.out.writeUTF(a);
+               this.out.flush();
+               PublicResource.bOk = false;
+               PublicResource.panelDead.showChessRun.setVisible(false);
+               PublicResource.iFirst = 2;
+             } else if (PublicResource.iFirst == -2) {
+               a = "whofirst,0";
+               this.out.writeUTF(a);
+               this.out.flush();
+               PublicResource.bOk = true;
+               PublicResource.panelDead.showChessRun.setVisible(true);
+               PublicResource.iFirst = 1;
+             }
+             System.out.println("server:" + a);
+           }
+ 
+         }
+         else
+         {
+           String sInfo = "newgamefalse";
+ 
+           PublicResource.panelMenu.newgame.setEnabled(true);
+ 
+           if (!PublicResource.bServer) {
+             PublicResource.panelMenu.gameclient.dOut.writeUTF(
+               sInfo);
+             PublicResource.panelMenu.gameclient.dOut.flush();
+           } else {
+             PublicResource.panelMenu.gameserver.out.writeUTF(
+               sInfo);
+             PublicResource.panelMenu.gameserver.out.flush();
+           }
+         }
+       }
+       else if (read.startsWith("newgameok")) {
+         JOptionPane.showMessageDialog(
+           PublicResource.panelBoard, 
+           "游戏开始！", 
+           "信息", 
+           1);
+ 
+         PublicResource.panelBoard.rollback();
+         PublicResource.bPlaying = true;
+         PublicResource.panelMenu.setButtonEnabled();
+ 
+         if (PublicResource.iFirst == 0) {
+           int whofirst = 
+             (int)(Math.round(Math.random() * 100.0D) % 2L);
+           String a = null;
+           if (whofirst == 0) {
+             a = "whofirst,1";
+             this.out.writeUTF(a);
+             this.out.flush();
+             PublicResource.bOk = false;
+             PublicResource.panelDead.showChessRun.setVisible(false);
+             PublicResource.iFirst = 2;
+           } else {
+             a = "whofirst,0";
+             this.out.writeUTF(a);
+             this.out.flush();
+             PublicResource.bOk = true;
+             PublicResource.panelDead.showChessRun.setVisible(true);
+             PublicResource.iFirst = 1;
+           }
+           System.out.println("server:" + a);
+         }
+         else if (PublicResource.iFirst < 0) {
+           String a = null;
+           if (PublicResource.iFirst == -1) {
+             a = "whofirst,1";
+             this.out.writeUTF(a);
+             this.out.flush();
+             PublicResource.bOk = false;
+             PublicResource.panelDead.showChessRun.setVisible(false);
+             PublicResource.iFirst = 2;
+           } else if (PublicResource.iFirst == -2) {
+             a = "whofirst,0";
+             this.out.writeUTF(a);
+             this.out.flush();
+             PublicResource.bOk = true;
+             PublicResource.panelDead.showChessRun.setVisible(true);
+             PublicResource.iFirst = 1;
+           }
+           System.out.println("server:" + a);
+         }
+ 
+       }
+       else if (read.startsWith("newgamefalse")) {
+         PublicResource.panelMenu.newgame.setEnabled(true);
+         JOptionPane.showMessageDialog(
+           PublicResource.panelBoard, 
+           "对方拒绝开始游戏！", 
+           "信息", 
+           1);
+         PublicResource.panelEnd.LtoRbutton.setEnabled(true);
+         PublicResource.panelEnd.RtoLbutton.setEnabled(true);
+       }
+       else if (read.startsWith("actionbutton"))
+       {
+         if (read.endsWith("1")) {
+           PublicResource.panelEnd.LtoRbutton.setSelected(true);
+         }
+         else {
+           PublicResource.panelEnd.RtoLbutton.setSelected(true);
+         }
+       }
+       else if (read.startsWith("show")) {
+         System.out.println(read);
+         String strTemp = read.substring(read.indexOf(',') + 1);
+         System.out.println(strTemp);
+ 
+         int[] iPara = getPara(strTemp, 3);
+         int x = iPara[0];
+         int y = iPara[1];
+         int chessNum = iPara[2];
+         System.out.println(
+           "receive: x:" + x + " y:" + y + " chessnum:" + chessNum);
+ 
+         PublicResource.panelBoard.chessmen[x][y].setVisible(false);
+         PublicResource.panelBoard.chessmen[x][y].chessNum = chessNum;
+         PublicResource.panelBoard.iAllchess[chessNum] = 2;
+         PublicResource.panelBoard.iChessleft -= 1;
+         PublicResource.panelBoard.chessmen[x][y].iStatus = 
+           PublicResource.chessUnselected;
+         PublicResource.panelBoard.chessmen[x][y].paintChessMan();
+         PublicResource.panelBoard.chessmen[x][y].setVisible(true);
+ 
+         if ((PublicResource.iColor == 0) && (PublicResource.panelEnd.group.getSelection().getActionCommand() == "The first different"))
+         {
+           if ((PublicResource.iFirst == 1) && (PublicResource.iColor == 0)) {
+             if (chessNum > 15)
+               this.iCheckcolor[1] = 2;
+             else {
+               this.iCheckcolor[1] = 1;
+             }
+             if (this.iCheckcolor[0] != this.iCheckcolor[1]) {
+               PublicResource.iColor = this.iCheckcolor[0];
+               PublicResource.panelDead.showChessColor.paintShowChess(PublicResource.iColor == 1);
+               PublicResource.panelDead.showChessColor.setVisible(true);
+               PublicResource.iFirst = -1;
+               String sInfo2 = "color," + this.iCheckcolor[1];
+               System.out.println(sInfo2);
+               try {
+                 if (!PublicResource.bServer) {
+                   PublicResource.panelMenu.gameclient.dOut
+                     .writeUTF(
+                     sInfo2);
+                   PublicResource.panelMenu.gameclient.dOut
+                     .flush();
+                 } else {
+                   PublicResource.panelMenu.gameserver.out
+                     .writeUTF(
+                     sInfo2);
+                   PublicResource.panelMenu.gameserver.out.flush();
+                 }
+               }
+               catch (IOException e)
+               {
+                 e.printStackTrace();
+               }
+             }
+           } else if ((PublicResource.iFirst == 2) && (PublicResource.iColor == 0)) {
+             if (chessNum > 15)
+               this.iCheckcolor[0] = 2;
+             else
+               this.iCheckcolor[0] = 1;
+           }
+         }
+         else if (PublicResource.iColor == 0) {
+           if (chessNum > 15)
+             PublicResource.iColor = 1;
+           else {
+             PublicResource.iColor = 2;
+           }
+           PublicResource.iFirst = 0 - PublicResource.iFirst;
+           PublicResource.panelDead.showChessColor.paintShowChess(PublicResource.iColor == 1);
+           PublicResource.panelDead.showChessColor.setVisible(true);
+         }
+ 
+         PublicResource.bOk = true;
+         PublicResource.panelDead.showChessRun.setVisible(true);
+       }
+       else if (read.startsWith("move")) {
+         String strTemp = read.substring(read.indexOf(',') + 1);
+         int[] iPara = getPara(strTemp, 2);
+         int x = iPara[0];
+         int y = iPara[1];
+ 
+         exchange(
+           x, 
+           y, 
+           PublicResource.panelBoard.firstX, 
+           PublicResource.panelBoard.firstY);
+ 
+         int end = checkEnd();
+         String sInfo = "end,win";
+         if (end == 1) {
+           try {
+             if (!PublicResource.bServer) {
+               PublicResource.panelMenu.gameclient.dOut.writeUTF(
+                 sInfo);
+               PublicResource.panelMenu.gameclient.dOut.flush();
+             } else {
+               PublicResource.panelMenu.gameserver.out.writeUTF(
+                 sInfo);
+               PublicResource.panelMenu.gameserver.out.flush();
+             }
+           }
+           catch (IOException e)
+           {
+             e.printStackTrace();
+           }
+           JOptionPane.showMessageDialog(
+             PublicResource.panelBoard, 
+             "你输啦！", 
+             "信息", 
+             1);
+ 
+           PublicResource.panelBoard.matchend();
+         }
+         else if (end == 2) {
+           try {
+             if (!PublicResource.bServer) {
+               PublicResource.panelMenu.gameclient.dOut.writeUTF(
+                 sInfo);
+               PublicResource.panelMenu.gameclient.dOut.flush();
+             } else {
+               PublicResource.panelMenu.gameserver.out.writeUTF(
+                 sInfo);
+               PublicResource.panelMenu.gameserver.out.flush();
+             }
+           }
+           catch (IOException e)
+           {
+             e.printStackTrace();
+           }
+           JOptionPane.showMessageDialog(
+             PublicResource.panelBoard, 
+             "你输啦！", 
+             "信息", 
+             1);
+ 
+           PublicResource.panelBoard.matchend();
+         }
+         else {
+           PublicResource.bOk = true;
+           PublicResource.panelDead.showChessRun.setVisible(true);
+         }
+       }
+       else if (read.startsWith("peaceapply")) {
+         int option = JOptionPane.showConfirmDialog(PublicResource.panelBoard, 
+           "对方请求和局，同意否？", "信息", 0);
+         String sInfo = null;
+ 
+         if (option == 0) {
+           sInfo = "peaceyes";
+           try {
+             if (!PublicResource.bServer) {
+               PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+               PublicResource.panelMenu.gameclient.dOut.flush();
+             }
+             else {
+               PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+               PublicResource.panelMenu.gameserver.out.flush();
+             }
+           }
+           catch (IOException e1)
+           {
+             e1.printStackTrace();
+           }
+ 
+           PublicResource.panelBoard.matchend();
+         }
+         else {
+           sInfo = "peaceno";
+           try {
+             if (!PublicResource.bServer) {
+               PublicResource.panelMenu.gameclient.dOut.writeUTF(sInfo);
+               PublicResource.panelMenu.gameclient.dOut.flush();
+             }
+             else {
+               PublicResource.panelMenu.gameserver.out.writeUTF(sInfo);
+               PublicResource.panelMenu.gameserver.out.flush();
+             }
+           }
+           catch (IOException e1)
+           {
+             e1.printStackTrace();
+           }
+         }
+ 
+       }
+       else if (read.startsWith("peaceyes")) {
+         JOptionPane.showMessageDialog(
+           PublicResource.panelBoard, 
+           "和局！", 
+           "信息", 
+           1);
+ 
+         PublicResource.panelBoard.matchend();
+       }
+       else if (read.startsWith("peaceno"))
+       {
+         JOptionPane.showMessageDialog(
+           PublicResource.panelBoard, 
+           "对方拒绝和局！", 
+           "信息", 
+           1);
+       } else if (read.startsWith("lose"))
+       {
+         JOptionPane.showMessageDialog(
+           PublicResource.panelBoard, 
+           "对方认输！", 
+           "信息", 
+           1);
+ 
+         PublicResource.panelBoard.matchend();
+       } else if (read.startsWith("selected")) {
+         String strTemp = read.substring(read.indexOf(',') + 1);
+ 
+         int[] iPara = getPara(strTemp, 2);
+         int x = iPara[0];
+         int y = iPara[1];
+ 
+         PublicResource.panelBoard.chessmen[x][y].iStatus = 
+           PublicResource.chessSelected;
+         PublicResource.panelBoard.chessmen[x][y].setVisible(false);
+         PublicResource.panelBoard.chessmen[x][y].setVisible(true);
+         PublicResource.panelBoard.firstX = x;
+         PublicResource.panelBoard.firstY = y;
+       }
+       else if (read.startsWith("unselected")) {
+         String strTemp = read.substring(read.indexOf(',') + 1);
+ 
+         int[] iPara = getPara(strTemp, 2);
+         int x = iPara[0];
+         int y = iPara[1];
+ 
+         PublicResource.panelBoard.chessmen[x][y].iStatus = 
+           PublicResource.chessUnselected;
+         PublicResource.panelBoard.chessmen[x][y].setVisible(false);
+         PublicResource.panelBoard.chessmen[x][y].setVisible(true);
+       }
+     }
+   }
+ }
+
+ package com.pp;
+ 
+ import java.awt.Image;
+ 
+ public class InitImage
+ {
+   public Image imageRed = LoadImage.getImageFromJar("RED_Chess.gif", getClass());
+   public Image imageMenu = LoadImage.getImageFromJar("Menu.JPG", getClass());
+   public Image imageBack = LoadImage.getImageFromJar("ChessBack.gif", getClass());
+   public Image imageSelect = LoadImage.getImageFromJar("Selected_Chess.gif", getClass());
+ }
+
+ package com.pp;
+ 
+ import java.awt.Image;
+ import java.awt.Toolkit;
+ import java.io.BufferedReader;
+ import java.io.ByteArrayOutputStream;
+ import java.io.IOException;
+ import java.io.InputStream;
+ import java.io.InputStreamReader;
+ import java.io.PrintStream;
+ import javax.swing.ImageIcon;
+ 
+ public class LoadImage
+ {
+   public static String getTextFromJar(String s, Class class1)
+   {
+     String s1 = "";
+     InputStream inputstream = class1.getResourceAsStream(s);
+     if (inputstream != null) {
+       BufferedReader bufferedreader = 
+         new BufferedReader(new InputStreamReader(inputstream));
+       try
+       {
+         String s2;
+         while ((s2 = bufferedreader.readLine()) != null)
+         {
+           String s2;
+           s1 = s1 + s2 + "\n";
+         }
+       } catch (IOException ioexception) {
+         ioexception.printStackTrace();
+       }
+     }
+     return s1;
+   }
+ 
+   public static ImageIcon loadImage(String filename) throws IOException {
+     InputStream is = ChessMenu.class.getResourceAsStream(filename);
+     ByteArrayOutputStream os = new ByteArrayOutputStream();
+     try {
+       label65: 
+       while (true) { int b = is.read();
+         if (b < 0) break;
+         os.write(b); break label65;
+ 
+         break;
+       }
+ 
+       return new ImageIcon(os.toByteArray());
+     } catch (IOException ex) {
+       ex.printStackTrace();
+       throw ex;
+     } finally {
+       is.close();
+       os.close();
+     }
+   }
+ 
+   public static Image getImageFromJar(String s, Class class1)
+   {
+     Image image = null;
+     InputStream inputstream = class1.getResourceAsStream(s);
+     if (inputstream != null) {
+       ByteArrayOutputStream bytearrayoutputstream = 
+         new ByteArrayOutputStream();
+       try {
+         byte[] abyte0 = new byte[1024];
+         for (int i = 0; (i = inputstream.read(abyte0)) >= 0; ) {
+           bytearrayoutputstream.write(abyte0, 0, i);
+         }
+         image = 
+           Toolkit.getDefaultToolkit().createImage(
+           bytearrayoutputstream.toByteArray());
+       } catch (IOException ioexception) {
+         System.out.println(ioexception.getMessage());
+         ioexception.printStackTrace();
+       }
+     }
+     else {
+       System.out.println("inputstream: null" + s);
+     }return image;
+   }
+ }
+
+ package com.pp;
+ 
+ import java.awt.Component;
+ import java.awt.Container;
+ import java.awt.Frame;
+ import java.awt.Window;
+ import java.awt.event.WindowAdapter;
+ import java.awt.event.WindowEvent;
+ import javax.swing.JFrame;
+ 
+ public class MainFrame extends JFrame
+ {
+   public MainFrame()
+   {
+     super("翻翻棋");
+     frmInit();
+   }
+ 
+   public void frmInit()
+   {
+     addWindowListener(new WindowAdapter()
+     {
+       public void windowClosing(WindowEvent e)
+       {
+         System.exit(0);
+       }
+     });
+     getContentPane().setLayout(null);
+ 
+     getContentPane().add(PublicResource.panelBoard, null);
+     getContentPane().add(PublicResource.panelMenu, null);
+     getContentPane().add(PublicResource.panelDead, null);
+     getContentPane().add(PublicResource.panelEnd, null);
+ 
+     setSize(526, 400);
+     setResizable(false);
+     setVisible(true);
+   }
+ 
+   public static void main(String[] args)
+   {
+     new MainFrame();
+   }
+ }
+
+ package com.pp;
+ 
+ public class PublicResource
+ {
+   public static boolean bOk = false;
+   public static boolean bEnd = false;
+ 
+   public static boolean bServer = false;
+   public static int iColor = 0;
+   public static boolean bPlaying = false;
+   public static boolean bConnected = false;
+ 
+   public static int iFirst = 0;
+ 
+   public static int iPort = 1111;
+ 
+   public static int chessUnknow = 0;
+   public static int chessUnselected = 1;
+   public static int chessSelected = 2;
+ 
+   public static String[][] sAllChessmen = { 
+     { "兵", "red" }, 
+     { "兵", "red" }, 
+     { "兵", "red" }, 
+     { "兵", "red" }, 
+     { "兵", "red" }, 
+     { "炮", "red" }, 
+     { "炮", "red" }, 
+     { "馬", "red" }, 
+     { "馬", "red" }, 
+     { "車", "red" }, 
+     { "車", "red" }, 
+     { "相", "red" }, 
+     { "相", "red" }, 
+     { "士", "red" }, 
+     { "士", "red" }, 
+     { "帥", "red" }, 
+     { "卒", "black" }, 
+     { "卒", "black" }, 
+     { "卒", "black" }, 
+     { "卒", "black" }, 
+     { "卒", "black" }, 
+     { "炮", "black" }, 
+     { "炮", "black" }, 
+     { "馬", "black" }, 
+     { "馬", "black" }, 
+     { "車", "black" }, 
+     { "車", "black" }, 
+     { "象", "black" }, 
+     { "象", "black" }, 
+     { "士", "black" }, 
+     { "士", "black" }, 
+     { "將", "black" } };
+ 
+   public static ChessBoard panelBoard = new ChessBoard();
+   public static DeadChessBoard panelDead = new DeadChessBoard();
+   public static EndPanel panelEnd = new EndPanel();
+   public static ChessMenu panelMenu = new ChessMenu();
+   public static InitImage imageBox = new InitImage();
+ }
+
